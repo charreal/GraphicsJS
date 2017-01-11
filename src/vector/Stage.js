@@ -1374,23 +1374,23 @@ acgraph.vector.Stage.prototype.shareAsSvg = function(onSuccess, opt_onError, opt
 /**
  * @param {Object} data Object with data.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  * @param {string=} opt_filename file name to save.
  * @private
  */
-acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename) {
+acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename) {
   var formatSize = null;
   var svgStr;
 
   if (goog.isDef(opt_paperSizeOrWidth)) {
     if (goog.isNumber(opt_paperSizeOrWidth)) {
       data['pdf-width'] = opt_paperSizeOrWidth;
-      data['pdf-height'] = goog.isNumber(opt_landscapeOrWidth) ? opt_landscapeOrWidth : this.height();
+      data['pdf-height'] = goog.isNumber(opt_landscapeOrHeight) ? opt_landscapeOrHeight : this.height();
     } else if (goog.isString(opt_paperSizeOrWidth)) {
       data['pdf-size'] = opt_paperSizeOrWidth || acgraph.vector.PaperSize.A4;
-      data['landscape'] = !!opt_landscapeOrWidth;
+      data['landscape'] = !!opt_landscapeOrHeight;
       formatSize = acgraph.utils.exporting.PdfPaperSize[data['pdf-size']];
       if (data['landscape'])
         formatSize = {
@@ -1431,16 +1431,16 @@ acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth
  * @param {function(string)=} opt_onError Function that will be called when sharing will complete.
  * @param {boolean=} opt_asBase64 Share as base64 file.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  * @param {string=} opt_filename file name to save.
  */
-acgraph.vector.Stage.prototype.shareAsPdf = function(onSuccess, opt_onError, opt_asBase64, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename) {
+acgraph.vector.Stage.prototype.shareAsPdf = function(onSuccess, opt_onError, opt_asBase64, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename) {
   var type = acgraph.type();
   if (type == acgraph.StageType.SVG) {
     var data = {};
-    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename);
+    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename);
     this.shareUrl_(acgraph.vector.Stage.ExportType.PDF, data, !!opt_asBase64, true, onSuccess, opt_onError);
   } else {
     alert(acgraph.error.getErrorMessage(acgraph.error.Code.FEATURE_NOT_SUPPORTED_IN_VML));
@@ -1513,15 +1513,15 @@ acgraph.vector.Stage.prototype.getSvgBase64String = function(onSuccess, opt_onEr
  * @param {function(string)} onSuccess Function that will be called when sharing will complete.
  * @param {function(string)=} opt_onError Function that will be called when sharing will complete.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  */
-acgraph.vector.Stage.prototype.getPdfBase64String = function(onSuccess, opt_onError, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y) {
+acgraph.vector.Stage.prototype.getPdfBase64String = function(onSuccess, opt_onError, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y) {
   var type = acgraph.type();
   if (type == acgraph.StageType.SVG) {
     var data = {};
-    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y);
+    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y);
     this.shareUrl_(acgraph.vector.Stage.ExportType.PDF, data, true, false, onSuccess, opt_onError);
   } else {
     alert(acgraph.error.getErrorMessage(acgraph.error.Code.FEATURE_NOT_SUPPORTED_IN_VML));
@@ -1572,16 +1572,16 @@ acgraph.vector.Stage.prototype.saveAsJpg = function(opt_width, opt_height, opt_q
 /**
  * Save current stage as PDF Document.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  * @param {string=} opt_filename file name to save.
  */
-acgraph.vector.Stage.prototype.saveAsPdf = function(opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename) {
+acgraph.vector.Stage.prototype.saveAsPdf = function(opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename) {
   var type = acgraph.type();
   if (type == acgraph.StageType.SVG) {
     var options = {};
-    this.addPdfData_(options, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename);
+    this.addPdfData_(options, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename);
     this.getHelperElement().sendRequestToExportServer(acgraph.exportServer + '/pdf', options);
   } else {
     alert(acgraph.error.getErrorMessage(acgraph.error.Code.FEATURE_NOT_SUPPORTED_IN_VML));

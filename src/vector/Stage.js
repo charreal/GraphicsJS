@@ -1416,7 +1416,7 @@ acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth
     proportionalSize[1] -= opt_y || 0;
     svgStr = this.toSvg(proportionalSize[0], proportionalSize[1]);
   } else {
-    svgStr = this.toSvg();
+    svgStr = this.toSvg(data['pdf-width'], data['pdf-height']);
   }
 
   data['data'] = svgStr;

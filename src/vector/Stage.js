@@ -1259,7 +1259,7 @@ acgraph.vector.Stage.prototype.shareUrl_ = function(type, data, asBase64, saveAn
  * @private
  */
 acgraph.vector.Stage.prototype.addPngData_ = function(data, opt_width, opt_height, opt_quality, opt_filename) {
-  data['data'] = this.toSvg();
+  data['data'] = this.toSvg(opt_width, opt_height);
   data['dataType'] = 'svg';
   data['responseType'] = 'file';
   if (goog.isDef(opt_width)) data['width'] = opt_width;
@@ -1301,7 +1301,7 @@ acgraph.vector.Stage.prototype.shareAsPng = function(onSuccess, opt_onError, opt
  * @private
  */
 acgraph.vector.Stage.prototype.addJpgData_ = function(data, opt_width, opt_height, opt_quality, opt_forceTransparentWhite, opt_filename) {
-  data['data'] = this.toSvg();
+  data['data'] = this.toSvg(opt_width, opt_height);
   data['dataType'] = 'svg';
   data['responseType'] = 'file';
   if (goog.isDef(opt_width)) data['width'] = opt_width;
@@ -1635,22 +1635,11 @@ acgraph.vector.Stage.prototype.toSvg = function(opt_paperSizeOrWidth, opt_landsc
     var sourceWidth = goog.style.getStyle(sourceDiv, 'width');
     var sourceHeight = goog.style.getStyle(sourceDiv, 'height');
 
-    //resize source stage
-    goog.style.setSize(sourceDiv, size.width, size.height);
-    this.updateSizeFromContainer();
-    this.render();
+    this.resize(size.width, size.height);
 
-    //take svg with
-    acgraph.getRenderer().setStageSize(this.domElement(),
-        /** @type {number|string} */(this.width()),
-        /** @type {number|string} */(this.height()));
     result = this.serializeToString_(this.domElement());
 
-    //restore source size
-    goog.style.setStyle(sourceDiv, 'width', sourceWidth);
-    goog.style.setStyle(sourceDiv, 'height', sourceHeight);
-    this.updateSizeFromContainer();
-    this.render();
+    this.resize(sourceWidth, sourceHeight);
   } else {
     acgraph.getRenderer().setStageSize(this.domElement(),
         /** @type {number|string} */(this.width()),

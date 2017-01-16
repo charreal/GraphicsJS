@@ -145,7 +145,8 @@ acgraph.utils.exporting.fullPagePrint = function(stage, opt_paperSizeOrWidth, op
   });
   iFrameDocument.body.appendChild(div);
 
-  var sourceStageSize = new goog.math.Size(stage.width(), stage.height());
+  var sourceStageWidth = stage.width();
+  var sourceStageHeight = stage.height();
   var printStageSize = goog.style.getContentBoxSize(div);
 
   stage.resize(printStageSize.width, printStageSize.height);
@@ -160,7 +161,7 @@ acgraph.utils.exporting.fullPagePrint = function(stage, opt_paperSizeOrWidth, op
   }
 
   //restore source size
-  stage.resize(sourceStageSize.width, sourceStageSize.height);
+  stage.resize(/** @type {number} */(sourceStageWidth), /** @type {number} */(sourceStageHeight));
 
   //open print dialog
   acgraph.utils.exporting.openPrint_();

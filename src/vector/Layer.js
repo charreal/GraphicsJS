@@ -1225,8 +1225,6 @@ acgraph.vector.Layer.prototype.serialize = function() {
 //----------------------------------------------------------------------------------------------------------------------
 /** @inheritDoc */
 acgraph.vector.Layer.prototype.disposeInternal = function() {
-  console.log('disposeInternal acgraph.vector.Layer ' + this.getElementTypePrefix());
-
   if (this.children) {
     goog.disposeAll.apply(null, this.children);
   }

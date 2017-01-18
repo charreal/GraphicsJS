@@ -2,7 +2,6 @@ goog.provide('acgraph.vector.Stage');
 
 goog.require('acgraph.error');
 goog.require('acgraph.events.BrowserEvent');
-goog.require('acgraph.math.Rect');
 goog.require('acgraph.utils.HelperElement');
 goog.require('acgraph.utils.IdGenerator');
 goog.require('acgraph.utils.exporting');
@@ -26,6 +25,7 @@ goog.require('goog.dom.classlist');
 goog.require('goog.events.EventHandler');
 goog.require('goog.events.EventTarget');
 goog.require('goog.events.Listenable');
+goog.require('goog.math.Rect');
 goog.require('goog.net.XhrIo');
 goog.require('goog.structs.Map');
 goog.require('goog.style');
@@ -505,7 +505,7 @@ acgraph.vector.Stage.prototype.width = function(opt_value) {
         this.setWidthInternal(0, containerWidth);
       }
     } else {
-      this.setWidthInternal(parseFloat(opt_value.toString()), containerWidth);
+      this.setWidthInternal(parseFloat(String(opt_value)), containerWidth);
     }
     this.needUpdateSize_ = true;
     if (!this.suspended_ && this.container_) {
@@ -548,7 +548,7 @@ acgraph.vector.Stage.prototype.height = function(opt_value) {
         this.setHeightInternal(0, containerHeight);
       }
     } else {
-      this.setHeightInternal(parseFloat(opt_value.toString()), containerHeight);
+      this.setHeightInternal(parseFloat(String(opt_value)), containerHeight);
     }
     this.needUpdateSize_ = true;
     if (!this.suspended_ && this.container()) {
@@ -1259,7 +1259,7 @@ acgraph.vector.Stage.prototype.shareUrl_ = function(type, data, asBase64, saveAn
  * @private
  */
 acgraph.vector.Stage.prototype.addPngData_ = function(data, opt_width, opt_height, opt_quality, opt_filename) {
-  data['data'] = this.toSvg();
+  data['data'] = this.toSvg(opt_width, opt_height);
   data['dataType'] = 'svg';
   data['responseType'] = 'file';
   if (goog.isDef(opt_width)) data['width'] = opt_width;
@@ -1301,7 +1301,7 @@ acgraph.vector.Stage.prototype.shareAsPng = function(onSuccess, opt_onError, opt
  * @private
  */
 acgraph.vector.Stage.prototype.addJpgData_ = function(data, opt_width, opt_height, opt_quality, opt_forceTransparentWhite, opt_filename) {
-  data['data'] = this.toSvg();
+  data['data'] = this.toSvg(opt_width, opt_height);
   data['dataType'] = 'svg';
   data['responseType'] = 'file';
   if (goog.isDef(opt_width)) data['width'] = opt_width;
@@ -1374,23 +1374,23 @@ acgraph.vector.Stage.prototype.shareAsSvg = function(onSuccess, opt_onError, opt
 /**
  * @param {Object} data Object with data.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  * @param {string=} opt_filename file name to save.
  * @private
  */
-acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename) {
+acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename) {
   var formatSize = null;
   var svgStr;
 
   if (goog.isDef(opt_paperSizeOrWidth)) {
     if (goog.isNumber(opt_paperSizeOrWidth)) {
       data['pdf-width'] = opt_paperSizeOrWidth;
-      data['pdf-height'] = goog.isNumber(opt_landscapeOrWidth) ? opt_landscapeOrWidth : this.height();
+      data['pdf-height'] = goog.isNumber(opt_landscapeOrHeight) ? opt_landscapeOrHeight : this.height();
     } else if (goog.isString(opt_paperSizeOrWidth)) {
       data['pdf-size'] = opt_paperSizeOrWidth || acgraph.vector.PaperSize.A4;
-      data['landscape'] = !!opt_landscapeOrWidth;
+      data['landscape'] = !!opt_landscapeOrHeight;
       formatSize = acgraph.utils.exporting.PdfPaperSize[data['pdf-size']];
       if (data['landscape'])
         formatSize = {
@@ -1416,8 +1416,9 @@ acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth
     proportionalSize[1] -= opt_y || 0;
     svgStr = this.toSvg(proportionalSize[0], proportionalSize[1]);
   } else {
-    svgStr = this.toSvg();
+    svgStr = this.toSvg(data['pdf-width'], data['pdf-height']);
   }
+
   data['data'] = svgStr;
   data['dataType'] = 'svg';
   data['responseType'] = 'file';
@@ -1430,16 +1431,16 @@ acgraph.vector.Stage.prototype.addPdfData_ = function(data, opt_paperSizeOrWidth
  * @param {function(string)=} opt_onError Function that will be called when sharing will complete.
  * @param {boolean=} opt_asBase64 Share as base64 file.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  * @param {string=} opt_filename file name to save.
  */
-acgraph.vector.Stage.prototype.shareAsPdf = function(onSuccess, opt_onError, opt_asBase64, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename) {
+acgraph.vector.Stage.prototype.shareAsPdf = function(onSuccess, opt_onError, opt_asBase64, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename) {
   var type = acgraph.type();
   if (type == acgraph.StageType.SVG) {
     var data = {};
-    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename);
+    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename);
     this.shareUrl_(acgraph.vector.Stage.ExportType.PDF, data, !!opt_asBase64, true, onSuccess, opt_onError);
   } else {
     alert(acgraph.error.getErrorMessage(acgraph.error.Code.FEATURE_NOT_SUPPORTED_IN_VML));
@@ -1512,15 +1513,15 @@ acgraph.vector.Stage.prototype.getSvgBase64String = function(onSuccess, opt_onEr
  * @param {function(string)} onSuccess Function that will be called when sharing will complete.
  * @param {function(string)=} opt_onError Function that will be called when sharing will complete.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  */
-acgraph.vector.Stage.prototype.getPdfBase64String = function(onSuccess, opt_onError, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y) {
+acgraph.vector.Stage.prototype.getPdfBase64String = function(onSuccess, opt_onError, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y) {
   var type = acgraph.type();
   if (type == acgraph.StageType.SVG) {
     var data = {};
-    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y);
+    this.addPdfData_(data, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y);
     this.shareUrl_(acgraph.vector.Stage.ExportType.PDF, data, true, false, onSuccess, opt_onError);
   } else {
     alert(acgraph.error.getErrorMessage(acgraph.error.Code.FEATURE_NOT_SUPPORTED_IN_VML));
@@ -1571,16 +1572,16 @@ acgraph.vector.Stage.prototype.saveAsJpg = function(opt_width, opt_height, opt_q
 /**
  * Save current stage as PDF Document.
  * @param {(number|string)=} opt_paperSizeOrWidth Any paper format like 'a0', 'tabloid', 'b4', etc.
- * @param {(number|boolean)=} opt_landscapeOrWidth Define, is landscape.
+ * @param {(number|boolean)=} opt_landscapeOrHeight Landscape or height.
  * @param {number=} opt_x Offset X.
  * @param {number=} opt_y Offset Y.
  * @param {string=} opt_filename file name to save.
  */
-acgraph.vector.Stage.prototype.saveAsPdf = function(opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename) {
+acgraph.vector.Stage.prototype.saveAsPdf = function(opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename) {
   var type = acgraph.type();
   if (type == acgraph.StageType.SVG) {
     var options = {};
-    this.addPdfData_(options, opt_paperSizeOrWidth, opt_landscapeOrWidth, opt_x, opt_y, opt_filename);
+    this.addPdfData_(options, opt_paperSizeOrWidth, opt_landscapeOrHeight, opt_x, opt_y, opt_filename);
     this.getHelperElement().sendRequestToExportServer(acgraph.exportServer + '/pdf', options);
   } else {
     alert(acgraph.error.getErrorMessage(acgraph.error.Code.FEATURE_NOT_SUPPORTED_IN_VML));
@@ -1634,22 +1635,11 @@ acgraph.vector.Stage.prototype.toSvg = function(opt_paperSizeOrWidth, opt_landsc
     var sourceWidth = goog.style.getStyle(sourceDiv, 'width');
     var sourceHeight = goog.style.getStyle(sourceDiv, 'height');
 
-    //resize source stage
-    goog.style.setSize(sourceDiv, size.width, size.height);
-    this.updateSizeFromContainer();
-    this.render();
+    this.resize(size.width, size.height);
 
-    //take svg with
-    acgraph.getRenderer().setStageSize(this.domElement(),
-        /** @type {number|string} */(this.width()),
-        /** @type {number|string} */(this.height()));
     result = this.serializeToString_(this.domElement());
 
-    //restore source size
-    goog.style.setStyle(sourceDiv, 'width', sourceWidth);
-    goog.style.setStyle(sourceDiv, 'height', sourceHeight);
-    this.updateSizeFromContainer();
-    this.render();
+    this.resize(sourceWidth, sourceHeight);
   } else {
     acgraph.getRenderer().setStageSize(this.domElement(),
         /** @type {number|string} */(this.width()),
@@ -1658,7 +1648,7 @@ acgraph.vector.Stage.prototype.toSvg = function(opt_paperSizeOrWidth, opt_landsc
     acgraph.getRenderer().setStageSize(this.domElement(), this.originalWidth, this.originalHeight);
   }
 
-  return result;
+  return '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' + result;
 };
 
 
@@ -1773,7 +1763,7 @@ acgraph.vector.Stage.prototype.image = acgraph.vector.Layer.prototype.image;
 /**
  Draws rectangle with rounded corners.<br/>
  Read more at {@link acgraph.vector.primitives.roundedRect}
- @param {!acgraph.math.Rect} rect Rect which corners will be truncated.
+ @param {!goog.math.Rect} rect Rect which corners will be truncated.
  @param {...number} var_args Set of param which define corners radius of rectangle.
  @return {!acgraph.vector.Path} {@link acgraph.vector.Path} for method chaining.
  */
@@ -1783,7 +1773,7 @@ acgraph.vector.Stage.prototype.roundedRect = acgraph.vector.Layer.prototype.roun
 /**
  Draws rectangle with inner rounded corners.<br/>
  Read more at {@link acgraph.vector.primitives.roundedInnerRect}
- @param {!acgraph.math.Rect} rect Rect which corners will be truncated.
+ @param {!goog.math.Rect} rect Rect which corners will be truncated.
  @param {...number} var_args Set of param which define corners radius of rectangle.
  @return {!acgraph.vector.Path} {@link acgraph.vector.Path} for method chaining.
  */
@@ -1793,7 +1783,7 @@ acgraph.vector.Stage.prototype.roundedInnerRect = acgraph.vector.Layer.prototype
 /**
  Draws rectangle with truncated corners.<br/>
  Read more at {@link acgraph.vector.primitives.truncatedRect}
- @param {!acgraph.math.Rect} rect Rect which corners will be truncated.
+ @param {!goog.math.Rect} rect Rect which corners will be truncated.
  @param {...number} var_args Set of param which define corners radius of rectangle.
  @return {!acgraph.vector.Path} {@link acgraph.vector.Path} for method chaining.
  */
@@ -2043,7 +2033,7 @@ acgraph.vector.Stage.prototype.donut = acgraph.vector.Layer.prototype.donut;
  <strong>Note:</strong><br>acgraph.vector.Stage doesn't delete objects you create.
  You must delete them yourself after you finish using them.<br/>
  Read more at: {@link acgraph.vector.PatternFill}
- @param {!acgraph.math.Rect} bounds Bounds of pattern. Defines size and offset of pattern.
+ @param {!goog.math.Rect} bounds Bounds of pattern. Defines size and offset of pattern.
  @return {!acgraph.vector.PatternFill} {@link acgraph.vector.PatternFill} for method chaining.
  */
 acgraph.vector.Stage.prototype.pattern = function(bounds) {
@@ -2246,7 +2236,7 @@ acgraph.vector.Stage.prototype.childClipChanged = goog.nullFunction;
 
 /**
  * Gets/sets element's title value.
- * @param {(string|null)=} opt_value - Value to be set.
+ * @param {?string=} opt_value - Value to be set.
  * @return {(string|null|!acgraph.vector.Stage|undefined)} - Current value or itself for method chaining.
  */
 acgraph.vector.Stage.prototype.title = function(opt_value) {
@@ -2264,7 +2254,7 @@ acgraph.vector.Stage.prototype.title = function(opt_value) {
 
 /**
  * Gets/sets element's desc value.
- * @param {(string|null)=} opt_value - Value to be set.
+ * @param {?string=} opt_value - Value to be set.
  * @return {(string|null|!acgraph.vector.Stage|undefined)} - Current value or itself for method chaining.
  */
 acgraph.vector.Stage.prototype.desc = function(opt_value) {
@@ -2306,10 +2296,10 @@ acgraph.vector.Stage.prototype.getY = function() {
 
 /**
  Returns bounds.
- @return {!acgraph.math.Rect} Bounds.
+ @return {!goog.math.Rect} Bounds.
  */
 acgraph.vector.Stage.prototype.getBounds = function() {
-  return new acgraph.math.Rect(0, 0, /** @type {number} */ (this.width()), /** @type {number} */ (this.height()));
+  return new goog.math.Rect(0, 0, /** @type {number} */ (this.width()), /** @type {number} */ (this.height()));
 };
 
 
@@ -2494,7 +2484,7 @@ acgraph.vector.Stage.prototype.getTransformationMatrix = function() {
 
 /**
  * Retirns full transformation (own and parent concatenated) which is always null.
- * @return {goog.graphics.AffineTransform} Full transformation.
+ * @return {goog.math.AffineTransform} Full transformation.
  */
 acgraph.vector.Stage.prototype.getFullTransformation = function() {
   return null;
@@ -2511,9 +2501,9 @@ acgraph.vector.Stage.prototype.getFullTransformation = function() {
  Clips a stage.
  Works only after render() is invoked.<br/>
  Read more at: {@link acgraph.vector.Element#clip}.
- @param {(acgraph.math.Rect|acgraph.vector.Clip)=} opt_value Clipping rectangle.
- @return {acgraph.vector.Element|acgraph.math.Rect|acgraph.vector.Clip} {@link acgraph.vector.Stage} for method chaining
- or {@link acgraph.math.rect} clipping rectangle.
+ @param {(goog.math.Rect|acgraph.vector.Clip)=} opt_value Clipping rectangle.
+ @return {acgraph.vector.Element|goog.math.Rect|acgraph.vector.Clip} {@link acgraph.vector.Stage} for method chaining
+ or {@link goog.math.Rect} clipping rectangle.
  */
 acgraph.vector.Stage.prototype.clip = function(opt_value) {
   return this.rootLayer_.clip(opt_value);
@@ -2522,7 +2512,7 @@ acgraph.vector.Stage.prototype.clip = function(opt_value) {
 
 /**
  * Creates a clip element.
- * @param {(number|Array.<number>|acgraph.math.Rect|Object|null)=} opt_leftOrRect Left coordinate of bounds
+ * @param {(number|Array.<number>|goog.math.Rect|Object|null)=} opt_leftOrRect Left coordinate of bounds
  * or rect or array or object representing bounds.
  * @param {number=} opt_top Top coordinate.
  * @param {number=} opt_width Width of the rect.
@@ -2749,116 +2739,125 @@ acgraph.vector.Stage.prototype.disposeInternal = function() {
   this.domElement_ = null;
   this.container_ = null;
   this.originContainer_ = null;
+
+  if (this.credits_) {
+    this.credits_.dispose();
+    this.credits_ = null;
+  }
 };
 
 
 //exports
-goog.exportSymbol('acgraph.vector.Stage', acgraph.vector.Stage);
-acgraph.vector.Stage.prototype['id'] = acgraph.vector.Stage.prototype.id;
-acgraph.vector.Stage.prototype['container'] = acgraph.vector.Stage.prototype.container;
-acgraph.vector.Stage.prototype['dispose'] = acgraph.vector.Stage.prototype.dispose;
-acgraph.vector.Stage.prototype['getBounds'] = acgraph.vector.Stage.prototype.getBounds;
-acgraph.vector.Stage.prototype['layer'] = acgraph.vector.Stage.prototype.layer;
-acgraph.vector.Stage.prototype['unmanagedLayer'] = acgraph.vector.Stage.prototype.unmanagedLayer;
-acgraph.vector.Stage.prototype['circle'] = acgraph.vector.Stage.prototype.circle;
-acgraph.vector.Stage.prototype['ellipse'] = acgraph.vector.Stage.prototype.ellipse;
-acgraph.vector.Stage.prototype['rect'] = acgraph.vector.Stage.prototype.rect;
-acgraph.vector.Stage.prototype['truncatedRect'] = acgraph.vector.Stage.prototype.truncatedRect;
-acgraph.vector.Stage.prototype['roundedRect'] = acgraph.vector.Stage.prototype.roundedRect;
-acgraph.vector.Stage.prototype['roundedInnerRect'] = acgraph.vector.Stage.prototype.roundedInnerRect;
-acgraph.vector.Stage.prototype['path'] = acgraph.vector.Stage.prototype.path;
-acgraph.vector.Stage.prototype['star'] = acgraph.vector.Stage.prototype.star;
-acgraph.vector.Stage.prototype['star4'] = acgraph.vector.Stage.prototype.star4;
-acgraph.vector.Stage.prototype['star5'] = acgraph.vector.Stage.prototype.star5;
-acgraph.vector.Stage.prototype['star6'] = acgraph.vector.Stage.prototype.star6;
-acgraph.vector.Stage.prototype['star7'] = acgraph.vector.Stage.prototype.star7;
-acgraph.vector.Stage.prototype['star10'] = acgraph.vector.Stage.prototype.star10;
-acgraph.vector.Stage.prototype['diamond'] = acgraph.vector.Stage.prototype.diamond;
-acgraph.vector.Stage.prototype['triangleUp'] = acgraph.vector.Stage.prototype.triangleUp;
-acgraph.vector.Stage.prototype['triangleDown'] = acgraph.vector.Stage.prototype.triangleDown;
-acgraph.vector.Stage.prototype['triangleRight'] = acgraph.vector.Stage.prototype.triangleRight;
-acgraph.vector.Stage.prototype['triangleLeft'] = acgraph.vector.Stage.prototype.triangleLeft;
-acgraph.vector.Stage.prototype['cross'] = acgraph.vector.Stage.prototype.cross;
-acgraph.vector.Stage.prototype['diagonalCross'] = acgraph.vector.Stage.prototype.diagonalCross;
-acgraph.vector.Stage.prototype['hLine'] = acgraph.vector.Stage.prototype.hLine;
-acgraph.vector.Stage.prototype['vLine'] = acgraph.vector.Stage.prototype.vLine;
-acgraph.vector.Stage.prototype['pie'] = acgraph.vector.Stage.prototype.pie;
-acgraph.vector.Stage.prototype['donut'] = acgraph.vector.Stage.prototype.donut;
-acgraph.vector.Stage.prototype['text'] = acgraph.vector.Stage.prototype.text;
-acgraph.vector.Stage.prototype['html'] = acgraph.vector.Stage.prototype.html;
-acgraph.vector.Stage.prototype['image'] = acgraph.vector.Stage.prototype.image;
-acgraph.vector.Stage.prototype['data'] = acgraph.vector.Stage.prototype.data;
-acgraph.vector.Stage.prototype['saveAsPNG'] = acgraph.vector.Stage.prototype.saveAsPng;
-acgraph.vector.Stage.prototype['saveAsJPG'] = acgraph.vector.Stage.prototype.saveAsJpg;
-acgraph.vector.Stage.prototype['saveAsPDF'] = acgraph.vector.Stage.prototype.saveAsPdf;
-acgraph.vector.Stage.prototype['saveAsSVG'] = acgraph.vector.Stage.prototype.saveAsSvg;
-acgraph.vector.Stage.prototype['saveAsPng'] = acgraph.vector.Stage.prototype.saveAsPng;
-acgraph.vector.Stage.prototype['saveAsJpg'] = acgraph.vector.Stage.prototype.saveAsJpg;
-acgraph.vector.Stage.prototype['saveAsPdf'] = acgraph.vector.Stage.prototype.saveAsPdf;
-acgraph.vector.Stage.prototype['saveAsSvg'] = acgraph.vector.Stage.prototype.saveAsSvg;
-acgraph.vector.Stage.prototype['shareAsPng'] = acgraph.vector.Stage.prototype.shareAsPng;
-acgraph.vector.Stage.prototype['shareAsJpg'] = acgraph.vector.Stage.prototype.shareAsJpg;
-acgraph.vector.Stage.prototype['shareAsPdf'] = acgraph.vector.Stage.prototype.shareAsPdf;
-acgraph.vector.Stage.prototype['shareAsSvg'] = acgraph.vector.Stage.prototype.shareAsSvg;
-acgraph.vector.Stage.prototype['getPngBase64String'] = acgraph.vector.Stage.prototype.getPngBase64String;
-acgraph.vector.Stage.prototype['getJpgBase64String'] = acgraph.vector.Stage.prototype.getJpgBase64String;
-acgraph.vector.Stage.prototype['getSvgBase64String'] = acgraph.vector.Stage.prototype.getSvgBase64String;
-acgraph.vector.Stage.prototype['getPdfBase64String'] = acgraph.vector.Stage.prototype.getPdfBase64String;
-acgraph.vector.Stage.prototype['print'] = acgraph.vector.Stage.prototype.print;
-acgraph.vector.Stage.prototype['toSvg'] = acgraph.vector.Stage.prototype.toSvg;
-acgraph.vector.Stage.prototype['pattern'] = acgraph.vector.Stage.prototype.pattern;
-acgraph.vector.Stage.prototype['hatchFill'] = acgraph.vector.Stage.prototype.hatchFill;
-acgraph.vector.Stage.prototype['clearDefs'] = acgraph.vector.Stage.prototype.clearDefs;
-acgraph.vector.Stage.prototype['numChildren'] = acgraph.vector.Stage.prototype.numChildren;
-acgraph.vector.Stage.prototype['addChild'] = acgraph.vector.Stage.prototype.addChild;
-acgraph.vector.Stage.prototype['addChildAt'] = acgraph.vector.Stage.prototype.addChildAt;
-acgraph.vector.Stage.prototype['removeChild'] = acgraph.vector.Stage.prototype.removeChild;
-acgraph.vector.Stage.prototype['removeChildAt'] = acgraph.vector.Stage.prototype.removeChildAt;
-acgraph.vector.Stage.prototype['removeChildren'] = acgraph.vector.Stage.prototype.removeChildren;
-acgraph.vector.Stage.prototype['swapChildren'] = acgraph.vector.Stage.prototype.swapChildren;
-acgraph.vector.Stage.prototype['swapChildrenAt'] = acgraph.vector.Stage.prototype.swapChildrenAt;
-acgraph.vector.Stage.prototype['getChildAt'] = acgraph.vector.Stage.prototype.getChildAt;
-acgraph.vector.Stage.prototype['hasChild'] = acgraph.vector.Stage.prototype.hasChild;
-acgraph.vector.Stage.prototype['forEachChild'] = acgraph.vector.Stage.prototype.forEachChild;
-acgraph.vector.Stage.prototype['indexOfChild'] = acgraph.vector.Stage.prototype.indexOfChild;
-acgraph.vector.Stage.prototype['getX'] = acgraph.vector.Stage.prototype.getX;
-acgraph.vector.Stage.prototype['getY'] = acgraph.vector.Stage.prototype.getY;
-acgraph.vector.Stage.prototype['width'] = acgraph.vector.Stage.prototype.width;
-acgraph.vector.Stage.prototype['height'] = acgraph.vector.Stage.prototype.height;
-acgraph.vector.Stage.prototype['getBounds'] = acgraph.vector.Stage.prototype.getBounds;
-acgraph.vector.Stage.prototype['resize'] = acgraph.vector.Stage.prototype.resize;
-acgraph.vector.Stage.prototype['asyncMode'] = acgraph.vector.Stage.prototype.asyncMode;
-acgraph.vector.Stage.prototype['resume'] = acgraph.vector.Stage.prototype.resume;
-acgraph.vector.Stage.prototype['suspend'] = acgraph.vector.Stage.prototype.suspend;
-acgraph.vector.Stage.prototype['isRendering'] = acgraph.vector.Stage.prototype.isRendering;
-acgraph.vector.Stage.prototype['isSuspended'] = acgraph.vector.Stage.prototype.isSuspended;
-acgraph.vector.Stage.prototype['remove'] = acgraph.vector.Stage.prototype.remove;
-acgraph.vector.Stage.prototype['domElement'] = acgraph.vector.Stage.prototype.domElement;
-acgraph.vector.Stage.prototype['visible'] = acgraph.vector.Stage.prototype.visible;
-acgraph.vector.Stage.prototype['rotate'] = acgraph.vector.Stage.prototype.rotate;
-acgraph.vector.Stage.prototype['rotateByAnchor'] = acgraph.vector.Stage.prototype.rotateByAnchor;
-acgraph.vector.Stage.prototype['setRotation'] = acgraph.vector.Stage.prototype.setRotation;
-acgraph.vector.Stage.prototype['setRotationByAnchor'] = acgraph.vector.Stage.prototype.setRotationByAnchor;
-acgraph.vector.Stage.prototype['translate'] = acgraph.vector.Stage.prototype.translate;
-acgraph.vector.Stage.prototype['setPosition'] = acgraph.vector.Stage.prototype.setPosition;
-acgraph.vector.Stage.prototype['scale'] = acgraph.vector.Stage.prototype.scale;
-acgraph.vector.Stage.prototype['scaleByAnchor'] = acgraph.vector.Stage.prototype.scaleByAnchor;
-acgraph.vector.Stage.prototype['appendTransformationMatrix'] = acgraph.vector.Stage.prototype.appendTransformationMatrix;
-acgraph.vector.Stage.prototype['setTransformationMatrix'] = acgraph.vector.Stage.prototype.setTransformationMatrix;
-acgraph.vector.Stage.prototype['getRotationAngle'] = acgraph.vector.Stage.prototype.getRotationAngle;
-acgraph.vector.Stage.prototype['getTransformationMatrix'] = acgraph.vector.Stage.prototype.getTransformationMatrix;
-acgraph.vector.Stage.prototype['clip'] = acgraph.vector.Stage.prototype.clip;
-acgraph.vector.Stage.prototype['createClip'] = acgraph.vector.Stage.prototype.createClip;
-acgraph.vector.Stage.prototype['parent'] = acgraph.vector.Stage.prototype.parent;
-acgraph.vector.Stage.prototype['getStage'] = acgraph.vector.Stage.prototype.getStage;
-acgraph.vector.Stage.prototype['listen'] = acgraph.vector.Stage.prototype.listen;
-acgraph.vector.Stage.prototype['listenOnce'] = acgraph.vector.Stage.prototype.listenOnce;
-acgraph.vector.Stage.prototype['unlisten'] = acgraph.vector.Stage.prototype.unlisten;
-acgraph.vector.Stage.prototype['unlistenByKey'] = acgraph.vector.Stage.prototype.unlistenByKey;
-acgraph.vector.Stage.prototype['removeAllListeners'] = acgraph.vector.Stage.prototype.removeAllListeners;
-acgraph.vector.Stage.prototype['title'] = acgraph.vector.Stage.prototype.title;
-acgraph.vector.Stage.prototype['desc'] = acgraph.vector.Stage.prototype.desc;
-goog.exportSymbol('acgraph.events.EventType.RENDER_START', acgraph.vector.Stage.EventType.RENDER_START);
-goog.exportSymbol('acgraph.events.EventType.RENDER_FINISH', acgraph.vector.Stage.EventType.RENDER_FINISH);
-goog.exportSymbol('acgraph.vector.Stage.EventType.STAGE_RESIZE', acgraph.vector.Stage.EventType.STAGE_RESIZE);
-goog.exportSymbol('acgraph.vector.Stage.EventType.STAGE_RENDERED', acgraph.vector.Stage.EventType.STAGE_RENDERED);
+/** @suppress {deprecated} */
+(function() {
+  var proto = acgraph.vector.Stage.prototype;
+  goog.exportSymbol('acgraph.vector.Stage', acgraph.vector.Stage);
+  proto['id'] = proto.id;
+  proto['container'] = proto.container;
+  proto['dispose'] = proto.dispose;
+  proto['getBounds'] = proto.getBounds;
+  proto['layer'] = proto.layer;
+  proto['unmanagedLayer'] = proto.unmanagedLayer;
+  proto['circle'] = proto.circle;
+  proto['ellipse'] = proto.ellipse;
+  proto['rect'] = proto.rect;
+  proto['truncatedRect'] = proto.truncatedRect;
+  proto['roundedRect'] = proto.roundedRect;
+  proto['roundedInnerRect'] = proto.roundedInnerRect;
+  proto['path'] = proto.path;
+  proto['star'] = proto.star;
+  proto['star4'] = proto.star4;
+  proto['star5'] = proto.star5;
+  proto['star6'] = proto.star6;
+  proto['star7'] = proto.star7;
+  proto['star10'] = proto.star10;
+  proto['diamond'] = proto.diamond;
+  proto['triangleUp'] = proto.triangleUp;
+  proto['triangleDown'] = proto.triangleDown;
+  proto['triangleRight'] = proto.triangleRight;
+  proto['triangleLeft'] = proto.triangleLeft;
+  proto['cross'] = proto.cross;
+  proto['diagonalCross'] = proto.diagonalCross;
+  proto['hLine'] = proto.hLine;
+  proto['vLine'] = proto.vLine;
+  proto['pie'] = proto.pie;
+  proto['donut'] = proto.donut;
+  proto['text'] = proto.text;
+  proto['html'] = proto.html;
+  proto['image'] = proto.image;
+  proto['data'] = proto.data;
+  proto['saveAsPNG'] = proto.saveAsPng;
+  proto['saveAsJPG'] = proto.saveAsJpg;
+  proto['saveAsPDF'] = proto.saveAsPdf;
+  proto['saveAsSVG'] = proto.saveAsSvg;
+  proto['saveAsPng'] = proto.saveAsPng;
+  proto['saveAsJpg'] = proto.saveAsJpg;
+  proto['saveAsPdf'] = proto.saveAsPdf;
+  proto['saveAsSvg'] = proto.saveAsSvg;
+  proto['shareAsPng'] = proto.shareAsPng;
+  proto['shareAsJpg'] = proto.shareAsJpg;
+  proto['shareAsPdf'] = proto.shareAsPdf;
+  proto['shareAsSvg'] = proto.shareAsSvg;
+  proto['getPngBase64String'] = proto.getPngBase64String;
+  proto['getJpgBase64String'] = proto.getJpgBase64String;
+  proto['getSvgBase64String'] = proto.getSvgBase64String;
+  proto['getPdfBase64String'] = proto.getPdfBase64String;
+  proto['print'] = proto.print;
+  proto['toSvg'] = proto.toSvg;
+  proto['pattern'] = proto.pattern;
+  proto['hatchFill'] = proto.hatchFill;
+  proto['clearDefs'] = proto.clearDefs;
+  proto['numChildren'] = proto.numChildren;
+  proto['addChild'] = proto.addChild;
+  proto['addChildAt'] = proto.addChildAt;
+  proto['removeChild'] = proto.removeChild;
+  proto['removeChildAt'] = proto.removeChildAt;
+  proto['removeChildren'] = proto.removeChildren;
+  proto['swapChildren'] = proto.swapChildren;
+  proto['swapChildrenAt'] = proto.swapChildrenAt;
+  proto['getChildAt'] = proto.getChildAt;
+  proto['hasChild'] = proto.hasChild;
+  proto['forEachChild'] = proto.forEachChild;
+  proto['indexOfChild'] = proto.indexOfChild;
+  proto['getX'] = proto.getX;
+  proto['getY'] = proto.getY;
+  proto['width'] = proto.width;
+  proto['height'] = proto.height;
+  proto['getBounds'] = proto.getBounds;
+  proto['resize'] = proto.resize;
+  proto['asyncMode'] = proto.asyncMode;
+  proto['resume'] = proto.resume;
+  proto['suspend'] = proto.suspend;
+  proto['isRendering'] = proto.isRendering;
+  proto['isSuspended'] = proto.isSuspended;
+  proto['remove'] = proto.remove;
+  proto['domElement'] = proto.domElement;
+  proto['visible'] = proto.visible;
+  proto['rotate'] = proto.rotate;
+  proto['rotateByAnchor'] = proto.rotateByAnchor;
+  proto['setRotation'] = proto.setRotation;
+  proto['setRotationByAnchor'] = proto.setRotationByAnchor;
+  proto['translate'] = proto.translate;
+  proto['setPosition'] = proto.setPosition;
+  proto['scale'] = proto.scale;
+  proto['scaleByAnchor'] = proto.scaleByAnchor;
+  proto['appendTransformationMatrix'] = proto.appendTransformationMatrix;
+  proto['setTransformationMatrix'] = proto.setTransformationMatrix;
+  proto['getRotationAngle'] = proto.getRotationAngle;
+  proto['getTransformationMatrix'] = proto.getTransformationMatrix;
+  proto['clip'] = proto.clip;
+  proto['createClip'] = proto.createClip;
+  proto['parent'] = proto.parent;
+  proto['getStage'] = proto.getStage;
+  proto['listen'] = proto.listen;
+  proto['listenOnce'] = proto.listenOnce;
+  proto['unlisten'] = proto.unlisten;
+  proto['unlistenByKey'] = proto.unlistenByKey;
+  proto['removeAllListeners'] = proto.removeAllListeners;
+  proto['title'] = proto.title;
+  proto['desc'] = proto.desc;
+  goog.exportSymbol('acgraph.events.EventType.RENDER_START', acgraph.vector.Stage.EventType.RENDER_START);
+  goog.exportSymbol('acgraph.events.EventType.RENDER_FINISH', acgraph.vector.Stage.EventType.RENDER_FINISH);
+  goog.exportSymbol('acgraph.vector.Stage.EventType.STAGE_RESIZE', acgraph.vector.Stage.EventType.STAGE_RESIZE);
+  goog.exportSymbol('acgraph.vector.Stage.EventType.STAGE_RENDERED', acgraph.vector.Stage.EventType.STAGE_RENDERED);
+})();
